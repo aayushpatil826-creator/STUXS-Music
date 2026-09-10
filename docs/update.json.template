@@ -1,0 +1,19 @@
+{
+  "": "STUXS Music In-App Update Manifest Template for GitHub Pages. Replace all <PLACEHOLDER> values before publishing to GitHub Pages.",
+  "latestVersion": "2.0",
+  "latestVersionCode": 5,
+  "minimumSupportedVersionCode": 1,
+  "releaseDate": "<REAL_RELEASE_DATE_YYYY-MM-DD>",
+  "apkUrl": "https://github.com/aayushpatil826-creator/STUXS-Music/releases/download/<RELEASE_TAG>/<APK_FILENAME>",
+  "apkSize": "<REAL_APK_SIZE_IN_BYTES_INTEGER>",
+  "sha256": "<REAL_APK_64_CHAR_HEX_SHA256>",
+  "mandatory": false,
+  "title": "STUXS Music 2.0",
+  "releaseNotes": [
+    "Smooth playlist scrolling with zero layout shifts and async artwork rendering",
+    "Real Indian Trending charts powered by JioSaavn and Gaana",
+    "Strict STUXS catalog exclusion from trending candidate pool",
+    "Home Carousel and Dedicated See All Trending parity",
+    "Native Media3 playback performance optimizations"
+  ]
+}

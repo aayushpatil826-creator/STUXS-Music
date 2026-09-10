@@ -1,0 +1,58 @@
+import type { Artist } from '../../types/music';
+
+export const MOCK_ARTISTS: Artist[] = [
+  {
+    id: 'artist-1',
+    name: 'Kavinsky & The Midnight',
+    artworkUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&auto=format&fit=crop&q=80',
+    bio: 'Pioneers of cinematic synthwave and neo-noir electronic soundscapes. Known for nostalgic 80s analog synthesizers and driving basslines.',
+    monthlyListeners: 4820190,
+    isVerified: true,
+    genres: ['Synthwave', 'Electronic', 'Retrowave'],
+  },
+  {
+    id: 'artist-2',
+    name: 'Aetheria Collective',
+    artworkUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80',
+    bio: 'An ethereal ambient electronic ensemble crafting deep cinematic textures, warm tape delays, and immersive binaural atmospheres.',
+    monthlyListeners: 2319040,
+    isVerified: true,
+    genres: ['Ambient', 'Downtempo', 'Chillout'],
+  },
+  {
+    id: 'artist-3',
+    name: 'Marcus Vance',
+    artworkUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&auto=format&fit=crop&q=80',
+    bio: 'Contemporary Neo-Soul and modern R&B artist blending soulful Rhodes chords with silky vocal layers and organic percussion.',
+    monthlyListeners: 5912400,
+    isVerified: true,
+    genres: ['R&B', 'Neo-Soul', 'Indie'],
+  },
+  {
+    id: 'artist-4',
+    name: 'SOLARIS',
+    artworkUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80',
+    bio: 'Progressive house and melodic techno producer headlining international festivals with hypnotic melodies and modular synth drops.',
+    monthlyListeners: 8410290,
+    isVerified: true,
+    genres: ['Melodic House', 'Techno', 'Dance'],
+  },
+  {
+    id: 'artist-5',
+    name: 'Tokyo Lo-Fi Club',
+    artworkUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&auto=format&fit=crop&q=80',
+    bio: 'Tokyo-based collective creating dusty vinyl beats, jazz piano samples, and rain-soaked midnight study beats.',
+    monthlyListeners: 3120500,
+    isVerified: true,
+    genres: ['Lo-Fi', 'Chillhop', 'Instrumental'],
+  },
+  {
+    id: 'artist-6',
+    name: 'Lunar Horizon',
+    artworkUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&auto=format&fit=crop&q=80',
+    bio: 'Post-rock and acoustic ambient indie band exploring themes of cosmos, melancholy, and human connections.',
+    monthlyListeners: 1945000,
+    isVerified: true,
+    genres: ['Post-Rock', 'Indie', 'Acoustic'],
+  },
+];

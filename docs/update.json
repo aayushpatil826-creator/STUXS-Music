@@ -1,0 +1,18 @@
+{
+  "latestVersion": "2.0",
+  "latestVersionCode": 5,
+  "minimumSupportedVersionCode": 1,
+  "releaseDate": "2026-09-10",
+  "apkUrl": "https://github.com/aayushpatil826-creator/STUXS-Music/releases/download/v2.0/STUXS-Music-2.0.apk",
+  "apkSize": 16798832,
+  "sha256": "a6b42ea5526f5e8c3ba9fd832f0352711f195401a6fdc6a26bb6363e5a572d25",
+  "mandatory": false,
+  "title": "STUXS Music 2.0",
+  "releaseNotes": [
+    "Smooth playlist scrolling with zero layout shifts and async artwork rendering",
+    "Real Indian Trending charts powered by JioSaavn and Gaana",
+    "Strict STUXS catalog exclusion from trending candidate pool",
+    "Home Carousel and Dedicated See All Trending parity",
+    "Native Media3 playback performance optimizations"
+  ]
+}

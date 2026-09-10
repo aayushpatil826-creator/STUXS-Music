@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0B0B0F" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>STUXS Music — Your music. Your way.</title>
+    <!-- Modern Inter Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('stuxs_appearance_settings');
+          var mode = 'system';
+          var theme = 'obsidian';
+          var accent = '#8B5CF6';
+          if (saved) {
+            var p = JSON.parse(saved);
+            if (p.themeMode) mode = p.themeMode;
+            if (p.theme) theme = p.theme;
+            if (p.accentColor) accent = p.accentColor;
+          }
+          var isDark = mode === 'dark' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) || (mode !== 'light');
+          var root = document.documentElement;
+          var effectiveTheme = isDark ? 'dark' : 'light';
+          if (isDark) {
+            root.classList.add('dark');
+            root.classList.remove('light');
+          } else {
+            root.classList.add('light');
+            root.classList.remove('dark');
+          }
+          root.setAttribute('data-theme', effectiveTheme);
+          root.style.setProperty('--stuxs-accent', accent);
+          root.style.setProperty('--stuxs-accent-glow', isDark ? 'rgba(139, 92, 246, 0.35)' : 'rgba(139, 92, 246, 0.25)');
+        } catch(e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-stuxs-bg text-stuxs-text">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

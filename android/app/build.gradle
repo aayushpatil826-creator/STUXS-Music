@@ -1,0 +1,185 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+
+android {
+    namespace = "com.stuxs.music"
+    compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures {
+        compose true
+    }
+    defaultConfig {
+        applicationId "com.stuxs.music"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 5
+        versionName "2.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+    signingConfigs {
+        release {
+            def storeFilePath = project.findProperty('STUXS_RELEASE_STORE_FILE') ?: System.getenv('STUXS_RELEASE_STORE_FILE')
+            def storePasswordVal = project.findProperty('STUXS_RELEASE_STORE_PASSWORD') ?: System.getenv('STUXS_RELEASE_STORE_PASSWORD')
+            def keyAliasVal = project.findProperty('STUXS_RELEASE_KEY_ALIAS') ?: System.getenv('STUXS_RELEASE_KEY_ALIAS')
+            def keyPasswordVal = project.findProperty('STUXS_RELEASE_KEY_PASSWORD') ?: System.getenv('STUXS_RELEASE_KEY_PASSWORD')
+
+            if (storeFilePath) {
+                storeFile file(storeFilePath)
+            }
+            if (storePasswordVal) {
+                storePassword storePasswordVal
+            }
+            if (keyAliasVal) {
+                keyAlias keyAliasVal
+            }
+            if (keyPasswordVal) {
+                keyPassword keyPasswordVal
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Ensure release builds fail immediately and explicitly with clear actionable instructions
+// if production signing credentials are not supplied externally.
+// Never silently fall back to debug signing or produce unsigned builds when release is requested.
+gradle.taskGraph.whenReady { taskGraph ->
+    def isReleaseTaskRequested = taskGraph.allTasks.any { task ->
+        task.name in ['assembleRelease', 'packageRelease', 'validateSigningRelease', 'bundleRelease']
+    }
+    if (isReleaseTaskRequested) {
+        def missing = []
+        def storeFilePath = project.findProperty('STUXS_RELEASE_STORE_FILE') ?: System.getenv('STUXS_RELEASE_STORE_FILE')
+        def storePasswordVal = project.findProperty('STUXS_RELEASE_STORE_PASSWORD') ?: System.getenv('STUXS_RELEASE_STORE_PASSWORD')
+        def keyAliasVal = project.findProperty('STUXS_RELEASE_KEY_ALIAS') ?: System.getenv('STUXS_RELEASE_KEY_ALIAS')
+        def keyPasswordVal = project.findProperty('STUXS_RELEASE_KEY_PASSWORD') ?: System.getenv('STUXS_RELEASE_KEY_PASSWORD')
+
+        if (!storeFilePath) {
+            missing << "STUXS_RELEASE_STORE_FILE (path to production keystore file, e.g. ~/.keystores/STUXS-Music-release.jks)"
+        }
+        if (!storePasswordVal) {
+            missing << "STUXS_RELEASE_STORE_PASSWORD (keystore password)"
+        }
+        if (!keyAliasVal) {
+            missing << "STUXS_RELEASE_KEY_ALIAS (production key alias name)"
+        }
+        if (!keyPasswordVal) {
+            missing << "STUXS_RELEASE_KEY_PASSWORD (key entry password)"
+        }
+
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                "\n========================================================================\n" +
+                "[STUXS RELEASE SIGNING ERROR] Missing production signing configuration:\n" +
+                missing.collect { "  * " + it }.join("\n") + "\n\n" +
+                "Production release builds require external credentials and will not\n" +
+                "fall back to debug or unsigned output.\n\n" +
+                "Supply credentials safely via ~/.gradle/gradle.properties or environment variables:\n" +
+                "  STUXS_RELEASE_STORE_FILE=/path/to/keystore.jks\n" +
+                "  STUXS_RELEASE_STORE_PASSWORD=...\n" +
+                "  STUXS_RELEASE_KEY_ALIAS=...\n" +
+                "  STUXS_RELEASE_KEY_PASSWORD=...\n" +
+                "DO NOT commit keystore files or passwords to the repository.\n" +
+                "========================================================================"
+            )
+        }
+
+        def store = file(storeFilePath)
+        if (!store.exists()) {
+            throw new GradleException(
+                "\n========================================================================\n" +
+                "[STUXS RELEASE SIGNING ERROR] Keystore file does not exist at:\n" +
+                "  " + store.absolutePath + "\n" +
+                "Please verify STUXS_RELEASE_STORE_FILE path.\n" +
+                "========================================================================"
+            )
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.media:media:1.7.0"
+
+    // Kotlin & Coroutines
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.0.21"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
+
+    // AndroidX Media3 (ExoPlayer & MediaSession)
+    implementation "androidx.media3:media3-exoplayer:1.5.1"
+    implementation "androidx.media3:media3-session:1.5.1"
+    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"
+    implementation "androidx.media3:media3-datasource-okhttp:1.5.1"
+    implementation "androidx.media3:media3-common:1.5.1"
+
+    // AndroidX Room Database
+    implementation "androidx.room:room-runtime:2.6.1"
+    implementation "androidx.room:room-ktx:2.6.1"
+    kapt "androidx.room:room-compiler:2.6.1"
+
+    // OkHttp Networking
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+
+    // Jetpack Compose BOM & UI
+    def composeBom = platform('androidx.compose:compose-bom:2024.10.01')
+    implementation composeBom
+    androidTestImplementation composeBom
+
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-graphics"
+    implementation "androidx.compose.ui:ui-tooling-preview"
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.compose.material:material-icons-extended"
+    implementation "androidx.activity:activity-compose:1.9.3"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-runtime-compose:2.8.7"
+
+    // Coil for Compose (Image Loading)
+    implementation "io.coil-kt:coil-compose:2.7.0"
+
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

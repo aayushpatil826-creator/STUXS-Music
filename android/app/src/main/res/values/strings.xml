@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">STUXS Music</string>
+    <string name="title_activity_main">STUXS Music</string>
+    <string name="package_name">com.stuxs.music</string>
+    <string name="custom_url_scheme">com.stuxs.music</string>
+    <drawable name="media3_notification_small_icon">@drawable/ic_stat_music</drawable>
+</resources>

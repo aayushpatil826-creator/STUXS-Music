@@ -1,0 +1,792 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, .dark, .dark *));
+
+@theme {
+  --color-stuxs-bg: var(--stuxs-bg, #0B0B0F);
+  --color-stuxs-surface: var(--stuxs-surface, #15151B);
+  --color-stuxs-surface-secondary: var(--stuxs-surface-secondary, #1D1D24);
+  --color-stuxs-surface-tertiary: var(--stuxs-surface-tertiary, #262630);
+  --color-stuxs-surface-hover: var(--stuxs-surface-hover, #2C2C38);
+  --color-stuxs-border: var(--stuxs-border, rgba(255, 255, 255, 0.08));
+  --color-stuxs-border-light: var(--stuxs-border-light, rgba(255, 255, 255, 0.14));
+  --color-stuxs-text: var(--stuxs-text, #FFFFFF);
+  --color-stuxs-text-secondary: var(--stuxs-text-secondary, #A6A6B0);
+  --color-stuxs-text-muted: var(--stuxs-text-muted, #6B6B78);
+  --color-stuxs-accent: var(--stuxs-accent, #8B5CF6);
+  --color-stuxs-accent-glow: var(--stuxs-accent-glow, rgba(139, 92, 246, 0.35));
+
+  --shadow-stuxs-glow: 0 8px 32px -4px var(--stuxs-accent-glow, rgba(139, 92, 246, 0.35));
+  --shadow-stuxs-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  --shadow-stuxs-player: 0 -10px 35px -5px rgba(0, 0, 0, 0.7);
+}
+
+:root {
+  --stuxs-bg: #0B0B10;
+  --stuxs-surface: #14141C;
+  --stuxs-surface-secondary: #1C1C28;
+  --stuxs-surface-tertiary: #252536;
+  --stuxs-surface-hover: #2F2F42;
+  --stuxs-border: rgba(255, 255, 255, 0.08);
+  --stuxs-border-light: rgba(255, 255, 255, 0.14);
+  --stuxs-text: #FFFFFF;
+  --stuxs-text-secondary: #94A3B8;
+  --stuxs-text-muted: #64748B;
+  --stuxs-accent: #8B5CF6;
+  --stuxs-accent-glow: rgba(139, 92, 246, 0.35);
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --stuxs-bg: #FAF8F5; /* Warm off-white / soft cream */
+  --stuxs-surface: #FFFFFF; /* Soft warm cream surface */
+  --stuxs-surface-secondary: #F3EFEA; /* Soft warm card surface */
+  --stuxs-surface-tertiary: #EAE4DC;
+  --stuxs-surface-hover: #E2DBD1;
+  --stuxs-border: rgba(15, 23, 42, 0.08);
+  --stuxs-border-light: rgba(15, 23, 42, 0.12);
+  --stuxs-text: #0F172A; /* Dark navy primary text */
+  --stuxs-text-secondary: #475569; /* Slate 600 muted gray */
+  --stuxs-text-muted: #94A3B8; /* Slate 400 */
+  --stuxs-accent: #8B5CF6; /* STUXS purple accent */
+  --stuxs-accent-glow: rgba(139, 92, 246, 0.25);
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --stuxs-bg: #0B0B10;
+  --stuxs-surface: #14141C;
+  --stuxs-surface-secondary: #1C1C28;
+  --stuxs-surface-tertiary: #252536;
+  --stuxs-surface-hover: #2F2F42;
+  --stuxs-border: rgba(255, 255, 255, 0.08);
+  --stuxs-border-light: rgba(255, 255, 255, 0.14);
+  --stuxs-text: #FFFFFF;
+  --stuxs-text-secondary: #94A3B8;
+  --stuxs-text-muted: #64748B;
+  --stuxs-accent: #8B5CF6;
+  --stuxs-accent-glow: rgba(139, 92, 246, 0.35);
+  color-scheme: dark;
+}
+
+/* Base Body Styling */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--stuxs-bg, #0B0B0F);
+  color: var(--stuxs-text, #FFFFFF);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  overflow-y: auto;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Complete Global Scrollbar Removal for Clean Native App Feel */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar,
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Safe area support for punch-hole cameras, notch and gesture bar */
+.pb-safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-top-header {
+  padding-top: calc(max(env(safe-area-inset-top, 40px), 40px) + 0.5rem) !important;
+}
+
+.safe-top-floating {
+  top: calc(max(env(safe-area-inset-top, 40px), 40px) + 0.5rem) !important;
+}
+
+/* ------------------------------------------------------------- */
+/* STUXS Premium Player Motion & Animation System                */
+/* GPU-Accelerated (transform & opacity with cubic-bezier curves)*/
+/* ------------------------------------------------------------- */
+
+@keyframes stuxsMiniPlayerEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes stuxsFullPlayerEnter {
+  0% {
+    opacity: 0.9;
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsFullPlayerExit {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0.9;
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes stuxsHeartPop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.32);
+  }
+  75% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes stuxsIconPop {
+  0% {
+    transform: scale(0.8) rotate(-6deg);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes stuxsScreenFadeIn {
+  0% {
+    opacity: 0.92;
+    transform: translate3d(0, 4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsDialogEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes stuxsDrawerSlideUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsDrawerSlideDown {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+/* ------------------------------------------------------------- */
+/* STUXS Reference Video Motion System Tokens                    */
+/* ------------------------------------------------------------- */
+:root {
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-quick-enter: cubic-bezier(0.2, 0.9, 0.3, 1);
+  --ease-sharp-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+}
+
+@keyframes stuxsAppLaunch {
+  0% {
+    opacity: 0.96;
+    transform: translate3d(0, 4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsTabForwardEnter {
+  0% {
+    transform: translate3d(100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsTabBackwardEnter {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsTabExitLeft {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translate3d(-30%, 0, 0);
+  }
+}
+
+@keyframes stuxsTabExitRight {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translate3d(30%, 0, 0);
+  }
+}
+
+@keyframes stuxsMenuEmerge {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes stuxsMenuDismiss {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.95);
+  }
+}
+
+@keyframes stuxsContentSettle {
+  0% {
+    opacity: 0.92;
+    transform: translate3d(0, 6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsDetailEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes stuxsDetailExit {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0) scale(0.98);
+  }
+}
+
+@keyframes stuxsPlaylistSheetEnter {
+  0% {
+    opacity: 0.96;
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsPlaylistSheetExit {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0.96;
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+.animate-app-launch {
+  animation: stuxsAppLaunch 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-tab-forward-enter {
+  animation: stuxsTabForwardEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-tab-backward-enter {
+  animation: stuxsTabBackwardEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-tab-exit-left {
+  animation: stuxsTabExitLeft 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-tab-exit-right {
+  animation: stuxsTabExitRight 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-menu-emerge {
+  animation: stuxsMenuEmerge 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: 50% 100%;
+}
+
+.animate-menu-dismiss {
+  animation: stuxsMenuDismiss 180ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+  transform-origin: 50% 100%;
+}
+
+.animate-content-settle {
+  animation: stuxsContentSettle 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-detail-enter {
+  animation: stuxsDetailEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-detail-exit {
+  animation: stuxsDetailExit 200ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+}
+
+.animate-playlist-sheet-enter {
+  animation: stuxsPlaylistSheetEnter 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-playlist-sheet-exit {
+  animation: stuxsPlaylistSheetExit 240ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-screen-in {
+  animation: stuxsScreenFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-dialog-in {
+  animation: stuxsDialogEnter 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-mini-player-in {
+  animation: stuxsMiniPlayerEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-full-player-in {
+  animation: stuxsFullPlayerEnter 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-full-player-out {
+  animation: stuxsFullPlayerExit 260ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-app-launch,
+  .animate-tab-forward-enter,
+  .animate-tab-backward-enter,
+  .animate-tab-exit-left,
+  .animate-tab-exit-right,
+  .animate-menu-emerge,
+  .animate-menu-dismiss,
+  .animate-content-settle,
+  .animate-detail-enter,
+  .animate-detail-exit,
+  .animate-full-player-in,
+  .animate-full-player-out,
+  .animate-screen-in,
+  .animate-dialog-in,
+  .animate-mini-player-in {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transform: none !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+.animate-heart-pop {
+  animation: stuxsHeartPop 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes stuxsArtworkCrossfade {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-artwork-crossfade {
+  animation: stuxsArtworkCrossfade 320ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-artwork-fade {
+  animation: stuxsArtworkCrossfade 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-icon-pop {
+  animation: stuxsIconPop 150ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-drawer-in {
+  animation: stuxsDrawerSlideUp 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-drawer-out {
+  animation: stuxsDrawerSlideDown 200ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Tactile micro-interaction feedback */
+.row-press {
+  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1), background-color 120ms ease;
+  will-change: transform;
+}
+
+.row-press:active {
+  transform: scale(0.985);
+}
+
+.card-press {
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease;
+  will-change: transform;
+}
+
+.card-press:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+/* GPU Optimization during active touch dragging */
+.modal-dragging-active {
+  user-select: none !important;
+  will-change: transform, opacity !important;
+}
+
+.modal-dragging-active * {
+  pointer-events: none !important;
+}
+
+.modal-dragging-active .liquid-glass,
+.modal-dragging-active .backdrop-blur-xl,
+.modal-dragging-active .backdrop-blur-2xl,
+.modal-dragging-active .backdrop-blur-3xl {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: rgba(15, 15, 22, 0.97) !important;
+}
+
+/* Apple-inspired Liquid Glass Design Language */
+.liquid-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.015) 100%), rgba(18, 18, 26, 0.72);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.85), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.liquid-glass-mini-player {
+  background: linear-gradient(180deg, rgba(30, 30, 42, 0.96) 0%, rgba(18, 18, 26, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.75), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.liquid-glass-bottom-nav {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(11, 11, 15, 0.88);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: 0 -8px 24px -4px rgba(0, 0, 0, 0.45);
+}
+
+.liquid-glass-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 100%), rgba(24, 24, 32, 0.86);
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.8), inset 0 1px 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.liquid-glass-pill {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%), rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.liquid-glass-pill:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%), rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.liquid-glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(139, 92, 246, 0.10) 100%), rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Light Theme Glass Adaptations (High contrast & semantic surfaces) */
+html[data-theme="light"] .liquid-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.95) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="light"] .liquid-glass-mini-player {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8F9FA 100%);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="light"] .liquid-glass-bottom-nav {
+  background: rgba(255, 255, 255, 0.97);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme="light"] .liquid-glass-panel {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.15);
+}
+
+html[data-theme="light"] .liquid-glass-pill {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .liquid-glass-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.06);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-glass {
+    background: rgba(22, 22, 30, 0.96);
+  }
+  .liquid-glass-mini-player {
+    background: rgba(24, 24, 32, 0.97);
+  }
+  .liquid-glass-bottom-nav {
+    background: rgba(11, 11, 15, 0.97);
+  }
+  .liquid-glass-panel {
+    background: rgba(26, 26, 34, 0.98);
+  }
+  .liquid-glass-pill {
+    background: rgba(40, 40, 50, 0.9);
+  }
+}
+
+@keyframes stuxsLiquidGlassEnter {
+  0% {
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes stuxsLiquidGlassExit {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+.animate-glass-in {
+  animation: stuxsLiquidGlassEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform;
+}
+
+.animate-glass-out {
+  animation: stuxsLiquidGlassExit 240ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+  will-change: transform;
+}
+
+/* Fast tactile button press feel */
+.btn-press {
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), opacity 140ms ease;
+}
+
+.btn-press:active {
+  transform: scale(0.92);
+  opacity: 0.85;
+}
+
+/* Vinyl Record Artwork Rotation & Grooves */
+@keyframes stuxsVinylSpin {
+  0% {
+    transform: rotate(0deg) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: rotate(360deg) translate3d(0, 0, 0);
+  }
+}
+
+.animate-vinyl-spin {
+  animation: none !important;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  contain: layout style paint;
+}
+
+.animate-vinyl-spin-paused {
+  animation-play-state: paused !important;
+}
+
+.animate-vinyl-spin-running {
+  animation-play-state: running !important;
+}
+
+/* Full Screen Artwork Strict 1:1 Aspect Ratio & Circular Mode */
+.fullscreen-artwork-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+}
+
+.fullscreen-artwork {
+  --artwork-size: min(72vw, 310px, 35vh);
+  width: var(--artwork-size);
+  height: var(--artwork-size);
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
+  border-radius: 1.5rem; /* rounded-3xl */
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.85);
+  background: rgba(26, 26, 36, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: border-radius 400ms ease-out, box-shadow 400ms ease-out, border-color 400ms ease-out;
+}
+
+.fullscreen-artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.fullscreen-artwork.is-rotating-circle {
+  border-radius: 50% !important;
+  border-color: rgba(255, 255, 255, 0.16);
+  animation: stuxsVinylSpin 28s linear infinite;
+  will-change: transform;
+}
+
+.fullscreen-artwork.is-rotating-circle.is-paused {
+  animation-play-state: paused !important;
+}
+
+.fullscreen-artwork.is-rotating-circle.is-running {
+  animation-play-state: running !important;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-mini-player-in,
+  .animate-full-player-in,
+  .animate-full-player-out,
+  .animate-heart-pop,
+  .animate-artwork-fade,
+  .animate-icon-pop,
+  .animate-drawer-in,
+  .animate-drawer-out,
+  .animate-glass-in,
+  .animate-glass-out {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-vinyl-spin {
+    animation: none !important;
+  }
+}

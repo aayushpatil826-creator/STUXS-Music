@@ -320,6 +320,7 @@ export const AppContent: React.FC = () => {
       <>
         {showSplash && <SplashScreen isFadingOut={!isLoading} />}
         <AuthScreen />
+        <AppUpdateManager />
       </>
     );
   }
@@ -355,9 +356,9 @@ export const AppContent: React.FC = () => {
             />
           </Suspense>
         )}
-
-        <AppUpdateManager />
       </AppLayout>
+
+      <AppUpdateManager />
     </>
   );
 };

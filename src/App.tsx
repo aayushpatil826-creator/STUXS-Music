@@ -153,21 +153,29 @@ export const AppContent: React.FC = () => {
     });
   }, []);
 
+  const savedScrollPosRef = useRef(0);
+
   const handleSelectArtist = useCallback((artistId: string) => {
+    savedScrollPosRef.current = window.scrollY || 0;
     setIsClosingDetail(false);
     setDetailView({ type: 'artist', id: artistId });
+    window.scrollTo(0, 0);
   }, []);
 
   const handleSelectAlbum = useCallback((albumId?: string) => {
     if (albumId) {
+      savedScrollPosRef.current = window.scrollY || 0;
       setIsClosingDetail(false);
       setDetailView({ type: 'album', id: albumId });
+      window.scrollTo(0, 0);
     }
   }, []);
 
   const handleSelectPlaylist = useCallback((playlistId: string) => {
+    savedScrollPosRef.current = window.scrollY || 0;
     setIsClosingDetail(false);
     setDetailView({ type: 'playlist', id: playlistId });
+    window.scrollTo(0, 0);
   }, []);
 
   const handleBack = useCallback(() => {
@@ -176,6 +184,9 @@ export const AppContent: React.FC = () => {
       setTimeout(() => {
         setDetailView(null);
         setIsClosingDetail(false);
+        requestAnimationFrame(() => {
+          window.scrollTo(0, savedScrollPosRef.current);
+        });
       }, 200);
       return true;
     });
@@ -198,9 +209,8 @@ export const AppContent: React.FC = () => {
   }, [handleTabChange]);
 
   const getTabContainerClass = (tab: TabType) => {
-    // For playlist overlays: keep the active tab visible underneath the sheet
-    // For artist/album overlays: hide tabs (full-screen slide-in)
-    if (detailView && detailView.type !== 'playlist') return 'hidden';
+    // Hide active tabs when detail view (artist, album, playlist) is open
+    if (detailView) return 'hidden';
     if (tab === activeTab) {
       const animClass = previousTab
         ? direction === 'forward'
@@ -274,10 +284,10 @@ export const AppContent: React.FC = () => {
           </div>
         )}
 
-        {/* Playlist: bottom-up sheet overlay — active tab stays stationary in DOM */}
+        {/* Playlist: bottom-up sheet view in document flow with native hardware scrolling */}
         {detailView && detailView.type === 'playlist' && (
           <div
-            className={`absolute inset-0 z-40 bg-stuxs-bg flex flex-col min-h-0 overflow-y-auto overscroll-y-contain ${
+            className={`flex-1 w-full flex flex-col min-h-0 ${
               isClosingDetail ? 'animate-playlist-sheet-exit' : 'animate-playlist-sheet-enter'
             }`}
           >

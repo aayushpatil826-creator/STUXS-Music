@@ -282,9 +282,12 @@ const PlaylistScreenComponent: React.FC<PlaylistScreenProps> = ({
   }, [cancelPlaylistDownload, playlist, showToast]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#7C3AED]/12 via-[#6366F1]/06 to-transparent dark:from-[#1E1138]/60 dark:via-[#140C24]/40 dark:to-transparent">
+    <div
+      className="min-h-screen bg-gradient-to-b from-[#7C3AED]/12 via-[#6366F1]/06 to-transparent dark:from-[#1E1138]/60 dark:via-[#140C24]/40 dark:to-transparent"
+      style={{ touchAction: 'pan-y' }}
+    >
       {/* Top Floating Navigation */}
-      <div className="sticky top-0 z-30 px-5 safe-top-header pb-3 bg-stuxs-bg/98 border-b border-stuxs-border/40 flex items-center justify-between">
+      <div className="sticky top-0 z-30 px-5 safe-top-header pb-3 bg-stuxs-bg backdrop-blur-md border-b border-stuxs-border/40 flex items-center justify-between">
         <button
           onClick={onBack}
           className="w-9 h-9 rounded-full bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/15 border border-black/5 dark:border-white/10 text-stuxs-text flex items-center justify-center active:scale-95 transition-all shadow-xs cursor-pointer"

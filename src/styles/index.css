@@ -360,7 +360,7 @@ html, body {
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
@@ -419,7 +419,6 @@ html, body {
 
 .animate-playlist-sheet-enter {
   animation: stuxsPlaylistSheetEnter 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
 }
 
 .animate-playlist-sheet-exit {

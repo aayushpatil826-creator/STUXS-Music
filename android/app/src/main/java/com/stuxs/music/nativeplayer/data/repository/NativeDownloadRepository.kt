@@ -55,28 +55,55 @@ class NativeDownloadRepository(
         return File(downloadsDir, "${sanitized}.stage.tmp")
     }
 
+    private fun getAlternativeTrackIds(trackId: String): List<String> {
+        val alts = mutableListOf(trackId)
+        if (trackId.startsWith("jiosaavn-track-")) {
+            alts.add(trackId.replace("jiosaavn-track-", "jiosaavn-"))
+        } else if (trackId.startsWith("jiosaavn-")) {
+            alts.add(trackId.replace("jiosaavn-", "jiosaavn-track-"))
+        } else if (trackId.startsWith("gaana-track-")) {
+            alts.add(trackId.replace("gaana-track-", "gaana-"))
+        } else if (trackId.startsWith("gaana-")) {
+            alts.add(trackId.replace("gaana-", "gaana-track-"))
+        } else if (trackId.startsWith("itunes-track-")) {
+            alts.add(trackId.replace("itunes-track-", "itunes-"))
+        } else if (trackId.startsWith("itunes-")) {
+            alts.add(trackId.replace("itunes-", "itunes-track-"))
+        }
+        return alts.distinct()
+    }
+
     suspend fun isDownloaded(trackId: String): Boolean = withContext(Dispatchers.IO) {
-        val count = dao.isTrackDownloaded(trackId)
-        if (count > 0) {
-            val entity = dao.getDownloadedTrackById(trackId)
-            if (entity != null) {
-                val file = File(entity.localFilePath)
-                return@withContext file.exists() && file.length() >= 10240L
+        val idsToCheck = getAlternativeTrackIds(trackId)
+        for (id in idsToCheck) {
+            val count = dao.isTrackDownloaded(id)
+            if (count > 0) {
+                val entity = dao.getDownloadedTrackById(id)
+                if (entity != null) {
+                    val file = File(entity.localFilePath)
+                    if (file.exists() && file.length() >= 10240L) {
+                        return@withContext true
+                    }
+                }
             }
         }
         false
     }
 
     suspend fun getDownloadedFile(trackId: String): File? = withContext(Dispatchers.IO) {
-        val entity = dao.getDownloadedTrackById(trackId) ?: return@withContext null
-        val file = File(entity.localFilePath)
-        if (file.exists() && file.length() >= 10240L) {
-            file
-        } else {
-            // Self-heal corrupted or deleted disk file
-            dao.deleteDownloadedTrackById(trackId)
-            null
+        val idsToCheck = getAlternativeTrackIds(trackId)
+        for (id in idsToCheck) {
+            val entity = dao.getDownloadedTrackById(id)
+            if (entity != null) {
+                val file = File(entity.localFilePath)
+                if (file.exists() && file.length() >= 10240L) {
+                    return@withContext file
+                } else {
+                    dao.deleteDownloadedTrackById(id)
+                }
+            }
         }
+        null
     }
 
     /**
@@ -178,20 +205,85 @@ class NativeDownloadRepository(
     }
 
     suspend fun removeDownload(trackId: String): Boolean = withContext(Dispatchers.IO) {
-        val entity = dao.getDownloadedTrackById(trackId)
-        if (entity != null) {
-            val file = File(entity.localFilePath)
-            if (file.exists()) {
-                file.delete()
+        val idsToRemove = getAlternativeTrackIds(trackId)
+        var anyRemoved = false
+        for (id in idsToRemove) {
+            val entity = dao.getDownloadedTrackById(id)
+            if (entity != null) {
+                val file = File(entity.localFilePath)
+                if (file.exists()) {
+                    file.delete()
+                }
+                if (dao.deleteDownloadedTrackById(id) > 0) {
+                    anyRemoved = true
+                }
             }
-            dao.deleteDownloadedTrackById(trackId) > 0
-        } else {
-            false
         }
+        anyRemoved
     }
 
     suspend fun getAllDownloadedTracks(): List<DownloadedTrackEntity> = withContext(Dispatchers.IO) {
-        dao.getAllDownloadedTracksSync()
+        val all = dao.getAllDownloadedTracksSync()
+        val seenPaths = mutableSetOf<String>()
+        val seenSignatures = mutableSetOf<String>()
+        val deduplicated = mutableListOf<DownloadedTrackEntity>()
+
+        for (entity in all) {
+            val file = File(entity.localFilePath)
+            if (!file.exists() || file.length() < 10240L) {
+                // Disk file missing or corrupt -> clean up Room entity
+                dao.deleteDownloadedTrackById(entity.id)
+                continue
+            }
+
+            val pathKey = file.canonicalPath
+            val sigKey = "${entity.title.trim().lowercase()}::${entity.artist.trim().lowercase()}"
+
+            if (seenPaths.contains(pathKey) || seenSignatures.contains(sigKey)) {
+                // Redundant duplicate entry in Room pointing to the same file or identical title/artist
+                dao.deleteDownloadedTrackById(entity.id)
+                continue
+            }
+
+            seenPaths.add(pathKey)
+            seenSignatures.add(sigKey)
+            deduplicated.add(entity)
+        }
+        deduplicated
+    }
+
+    /**
+     * Safely purges unreferenced staging/temp files and unreferenced audio files older than olderThanMs.
+     * Safe age rule: never delete actively staging files, never delete files referenced by Room DB,
+     * and never delete files modified less than 10 minutes ago.
+     */
+    suspend fun purgeOrphanFiles(olderThanMs: Long = 10 * 60 * 1000L): Int = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val cutoff = now - olderThanMs
+        var purgedCount = 0
+
+        val activePaths = activeStagingFiles.values.map { it.absolutePath }.toSet()
+        val roomPaths = dao.getAllDownloadedTracksSync().map { it.localFilePath }.toSet()
+
+        val files = downloadsDir.listFiles() ?: return@withContext 0
+        for (file in files) {
+            val path = file.absolutePath
+            if (activePaths.contains(path) || roomPaths.contains(path)) {
+                continue
+            }
+
+            // Must be older than cutoff to guarantee it is not an active in-flight operation
+            if (file.lastModified() < cutoff) {
+                val isStaging = file.name.endsWith(".tmp") || file.name.endsWith(".stage.tmp")
+                val isAudio = file.name.endsWith(".mp3") || file.name.endsWith(".m4a")
+                if (isStaging || isAudio) {
+                    if (file.delete()) {
+                        purgedCount++
+                    }
+                }
+            }
+        }
+        purgedCount
     }
 
     /**

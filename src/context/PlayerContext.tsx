@@ -835,7 +835,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    * 4. Automatically invalidates cache and retries fresh if stream resolution fails
    */
   const startTrackPlayback = useCallback(
-    async (targetTrack: Track, generation: number, initialPosition?: number) => {
+    async (targetTrack: Track, generation: number, initialPosition?: number, isAutoNext?: boolean) => {
       // If user has already selected another song, discard immediately
       if (generation !== playbackGenerationRef.current) return;
 
@@ -887,17 +887,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         if (!resolved.audioUrl || resolved.isPlayable === false || resolved.accessStatus === 'blocked') {
           setIsLoadingTrack(false);
-          setIsPlaying(false);
-          isPlayingRef.current = false;
-          if (nativePlaybackController.isEnabled()) {
-            await nativePlaybackController.stop();
-          }
           const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
           if (isOffline) {
             showToast(`Offline: "${targetTrack.title}" is not downloaded`, 'error');
           } else {
             console.warn('[PlayerContext] Full playback unavailable for:', targetTrack.title);
             showToast(`Full playback unavailable for "${targetTrack.title}"`, 'error');
+          }
+
+          // Fall-forward error recovery during auto-next: attempt the next track in queue instead of stopping playback
+          if (isAutoNext) {
+            console.log('[AUTO NEXT] Fall-forward: Skipping unplayable track and attempting next in queue');
+            const res = resolveNextTrack();
+            if (res && res.nextSong && res.nextSong.id !== targetTrack.id) {
+              return await playTrack(res.nextSong, undefined, {
+                reason: 'auto-next',
+                autoplay: true,
+              });
+            }
+          }
+
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+          if (nativePlaybackController.isEnabled()) {
+            await nativePlaybackController.stop();
           }
           return;
         }
@@ -1171,7 +1184,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // 6. Execute Playback asynchronously with strict generation guards & auto-recovery
-      await startTrackPlayback(track, generation, options?.initialPosition);
+      await startTrackPlayback(track, generation, options?.initialPosition, options?.reason === 'auto-next');
     },
     [startTrackPlayback]
   );

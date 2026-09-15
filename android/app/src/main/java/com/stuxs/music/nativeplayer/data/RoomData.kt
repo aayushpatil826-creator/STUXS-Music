@@ -69,6 +69,12 @@ interface DownloadedTrackDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM downloaded_tracks WHERE id = :id)")
     suspend fun existsById(id: String): Boolean
+
+    @Query("SELECT * FROM downloaded_tracks WHERE LOWER(title) = LOWER(:title) AND LOWER(artist) = LOWER(:artist) LIMIT 1")
+    suspend fun getDownloadedTrackByTitleAndArtist(title: String, artist: String): DownloadedTrackEntity?
+
+    @Query("SELECT * FROM downloaded_tracks WHERE localFilePath = :filePath LIMIT 1")
+    suspend fun getDownloadedTrackByFilePath(filePath: String): DownloadedTrackEntity?
 }
 
 @Dao

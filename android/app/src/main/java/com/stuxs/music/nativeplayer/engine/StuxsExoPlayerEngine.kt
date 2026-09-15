@@ -62,6 +62,7 @@ class StuxsExoPlayerEngine(
             // Let ExoPlayer handle AudioFocus gracefully during native playback
             setAudioAttributes(audioAttributes, true)
             setHandleAudioBecomingNoisy(true)
+            setWakeMode(C.WAKE_MODE_NETWORK)
         }
 
     private val _playbackState = MutableStateFlow(NativePlaybackState())
@@ -444,19 +445,28 @@ class StuxsExoPlayerEngine(
             if (!isActive) return@launch
 
             if (mediaSource != null) {
+                consecutiveErrorCount = 0
                 playMediaSource(mediaSource, startPositionMs, playWhenReady)
                 fetchArtworkAsync(track)
                 scheduleGaplessPreload()
             } else {
                 isRecoveringFromError = false
-                exoPlayer.stop()
-                exoPlayer.clearMediaItems()
-                stopProgressTracker()
-                _playbackState.value = _playbackState.value.copy(
-                    state = StateType.ERROR,
-                    errorMessage = "Cannot play '${track.title}': Source unavailable"
-                )
-                invalidateCommands()
+                consecutiveErrorCount++
+                android.util.Log.w("STUXS_SENTINEL", "[SOURCE_UNAVAILABLE id=" + track.id + " index=" + currentIndex + " consecutiveErrors=" + consecutiveErrorCount + "]")
+                if (hasNextTrack() && playWhenReady && consecutiveErrorCount < currentQueue.size) {
+                    android.util.Log.i("STUXS_SENTINEL", "[FALL_FORWARD_AUTO_ADVANCE past=" + track.id + "]")
+                    skipToNext()
+                } else {
+                    consecutiveErrorCount = 0
+                    exoPlayer.stop()
+                    exoPlayer.clearMediaItems()
+                    stopProgressTracker()
+                    _playbackState.value = _playbackState.value.copy(
+                        state = StateType.ERROR,
+                        errorMessage = "Cannot play '${track.title}': Source unavailable"
+                    )
+                    invalidateCommands()
+                }
             }
         }
     }
@@ -648,12 +658,41 @@ class StuxsExoPlayerEngine(
                 seekTo(0L)
                 exoPlayer.play()
             }
-            NativeRepeatMode.ALL, NativeRepeatMode.OFF -> {
-                _playbackState.value = _playbackState.value.copy(
-                    state = StateType.ENDED,
-                    positionMs = exoPlayer.duration.coerceAtLeast(0L)
-                )
-                onPlaybackEndedListener?.invoke()
+            NativeRepeatMode.ALL -> {
+                if (currentQueue.isNotEmpty()) {
+                    val advanced = skipToNext()
+                    if (!advanced) {
+                        _playbackState.value = _playbackState.value.copy(
+                            state = StateType.ENDED,
+                            positionMs = exoPlayer.duration.coerceAtLeast(0L)
+                        )
+                        onPlaybackEndedListener?.invoke()
+                    }
+                } else {
+                    _playbackState.value = _playbackState.value.copy(
+                        state = StateType.ENDED,
+                        positionMs = exoPlayer.duration.coerceAtLeast(0L)
+                    )
+                    onPlaybackEndedListener?.invoke()
+                }
+            }
+            NativeRepeatMode.OFF -> {
+                if (hasNextTrack()) {
+                    val advanced = skipToNext()
+                    if (!advanced) {
+                        _playbackState.value = _playbackState.value.copy(
+                            state = StateType.ENDED,
+                            positionMs = exoPlayer.duration.coerceAtLeast(0L)
+                        )
+                        onPlaybackEndedListener?.invoke()
+                    }
+                } else {
+                    _playbackState.value = _playbackState.value.copy(
+                        state = StateType.ENDED,
+                        positionMs = exoPlayer.duration.coerceAtLeast(0L)
+                    )
+                    onPlaybackEndedListener?.invoke()
+                }
             }
         }
     }

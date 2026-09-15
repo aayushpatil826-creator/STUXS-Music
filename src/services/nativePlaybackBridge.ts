@@ -146,6 +146,10 @@ export interface NativePlaybackBridgePluginInterface {
     localFilePath?: string;
     error?: string;
   }>;
+  purgeOrphanDownloads(options?: { olderThanMs?: number }): Promise<{
+    success: boolean;
+    purgedCount: number;
+  }>;
   addListener(eventName: 'trackChanged', listenerFunc: (data: any) => void): Promise<any>;
   addListener(eventName: 'playbackEnded', listenerFunc: () => void): Promise<any>;
   addListener(eventName: 'playbackStateChanged', listenerFunc: (data: { state: string }) => void): Promise<any>;
@@ -614,6 +618,20 @@ class NativePlaybackBridge {
         expectedChunkIndex: 0,
         error: err?.message || 'getNativeDownloadStatus failed',
       };
+    }
+  }
+
+  public async purgeOrphanDownloads(olderThanMs: number = 10 * 60 * 1000): Promise<{
+    success: boolean;
+    purgedCount: number;
+  }> {
+    if (!this.isAvailable()) {
+      return { success: false, purgedCount: 0 };
+    }
+    try {
+      return await this.executeWithTimeout(() => NativePlugin.purgeOrphanDownloads({ olderThanMs }), 5000);
+    } catch {
+      return { success: false, purgedCount: 0 };
     }
   }
 }

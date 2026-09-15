@@ -118,6 +118,36 @@ class StuxsMedia3PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var playerEngine: StuxsExoPlayerEngine? = null
     private var forwardingPlayer: StuxsForwardingPlayer? = null
+    private var transitionWakeLock: android.os.PowerManager.WakeLock? = null
+
+    private fun acquireTransitionWakeLock(timeoutMs: Long = 25000L) {
+        try {
+            if (transitionWakeLock == null) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                transitionWakeLock = powerManager?.newWakeLock(
+                    android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                    "STUXS:AutoNextTransition"
+                )?.apply {
+                    setReferenceCounted(false)
+                }
+            }
+            transitionWakeLock?.acquire(timeoutMs)
+            android.util.Log.i("STUXS_SENTINEL", "[TRANSITION_WAKELOCK_ACQUIRED timeout=" + timeoutMs + "ms]")
+        } catch (e: Exception) {
+            android.util.Log.w("STUXS_SENTINEL", "[WAKELOCK_ACQUIRE_FAILED]", e)
+        }
+    }
+
+    private fun releaseTransitionWakeLock() {
+        try {
+            if (transitionWakeLock?.isHeld == true) {
+                transitionWakeLock?.release()
+                android.util.Log.i("STUXS_SENTINEL", "[TRANSITION_WAKELOCK_RELEASED]")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("STUXS_SENTINEL", "[WAKELOCK_RELEASE_FAILED]", e)
+        }
+    }
 
     companion object {
         const val CHANNEL_ID = "stuxs_music_playback"
@@ -162,6 +192,22 @@ class StuxsMedia3PlaybackService : MediaSessionService() {
 
         val fwdPlayer = StuxsForwardingPlayer(engine.exoPlayer, engine)
         forwardingPlayer = fwdPlayer
+
+        engine.onPlaybackStateChangedListener = { state ->
+            when (state) {
+                com.stuxs.music.nativeplayer.model.StateType.BUFFERING -> {
+                    acquireTransitionWakeLock(25000L)
+                }
+                com.stuxs.music.nativeplayer.model.StateType.PLAYING,
+                com.stuxs.music.nativeplayer.model.StateType.READY,
+                com.stuxs.music.nativeplayer.model.StateType.PAUSED,
+                com.stuxs.music.nativeplayer.model.StateType.IDLE,
+                com.stuxs.music.nativeplayer.model.StateType.ENDED,
+                com.stuxs.music.nativeplayer.model.StateType.ERROR -> {
+                    releaseTransitionWakeLock()
+                }
+            }
+        }
 
         engine.addCommandInvalidationListener {
             fwdPlayer.notifyAvailableCommandsChanged()
@@ -247,6 +293,8 @@ class StuxsMedia3PlaybackService : MediaSessionService() {
         forwardingPlayer = null
         playerEngine?.release()
         playerEngine = null
+        releaseTransitionWakeLock()
+        transitionWakeLock = null
         instance = null
         super.onDestroy()
     }

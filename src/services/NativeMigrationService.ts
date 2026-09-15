@@ -2,6 +2,7 @@ import type { Track } from '../types/music';
 import { storageService, type StoredAudioRecord } from './StorageService';
 import { nativePlaybackBridge } from './nativePlaybackBridge';
 import { validateDownloadSource, downloadService } from './DownloadService';
+import { getCanonicalTrackKey } from '../utils/trackIdentity';
 
 export const MAX_BINARY_CHUNK_SIZE = 256 * 1024; // 262,144 bytes (256 KB)
 export const MIN_VALID_FILE_SIZE = 10240; // 10 KB native threshold
@@ -270,6 +271,7 @@ export class NativeMigrationService {
       }
       const records = Array.from(recordMap.values());
       const candidates: StoredAudioRecord[] = [];
+      const seenCanonicalKeys = new Set<string>();
 
       for (const rec of records) {
         if (!rec || typeof rec !== 'object') continue;
@@ -281,9 +283,24 @@ export class NativeMigrationService {
         }
 
         const isAlreadyNative = await nativePlaybackBridge.isTrackDownloadedNatively(trackId);
-        if (isAlreadyNative) {
+        const isDownloadedCanonically = downloadService.isTrackDownloaded(rec.track || { id: trackId });
+        if (isAlreadyNative || isDownloadedCanonically) {
+          // If already native, purge redundant legacy blob to avoid duplicate counts and save space
+          if (!trackId.startsWith('local_') && rec.track?.sourceType !== 'local') {
+            await storageService.deleteDownloadedTrack(trackId).catch(() => {});
+          }
           continue;
         }
+
+        const cKey = getCanonicalTrackKey(rec.track || { id: trackId });
+        if (seenCanonicalKeys.has(cKey)) {
+          // Duplicate recording already staged for migration
+          if (!trackId.startsWith('local_') && rec.track?.sourceType !== 'local') {
+            await storageService.deleteDownloadedTrack(trackId).catch(() => {});
+          }
+          continue;
+        }
+        seenCanonicalKeys.add(cKey);
 
         if (rec.track) {
           const validation = validateDownloadSource(rec.track, rec.track.audioUrl || 'blob://stored');
@@ -598,6 +615,10 @@ export class NativeMigrationService {
               track: migratedTrack,
               fileSize: migratedTrack.fileSize || bytesTransferred,
             }).catch(() => {});
+          } else {
+            // Safely delete the legacy IndexedDB record and blob now that native storage is 100% verified!
+            console.log('[MIGRATION] Safely deleting migrated IndexedDB record:', trackId);
+            await storageService.deleteDownloadedTrack(trackId).catch(() => {});
           }
         } catch {}
       }

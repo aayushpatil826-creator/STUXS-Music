@@ -1032,4 +1032,20 @@ public class NativePlaybackBridgePlugin extends Plugin {
             }
         });
     }
+
+    @PluginMethod
+    public void purgeOrphanDownloads(PluginCall call) {
+        bridgeIoExecutor.execute(() -> {
+            try {
+                long olderThanMs = call.getInt("olderThanMs", 10 * 60 * 1000);
+                int count = getDownloadManager().purgeOrphanFilesBlocking(olderThanMs);
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                ret.put("purgedCount", count);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Failed to purge orphan downloads: " + e.getMessage(), e);
+            }
+        });
+    }
 }

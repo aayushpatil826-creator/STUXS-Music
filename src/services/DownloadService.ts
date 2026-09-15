@@ -5,6 +5,11 @@ import { providerRegistry } from '../providers/ProviderRegistry';
 import { mapJioSaavnUrlToQuality } from '../utils/audioQuality';
 import { nativePlaybackController } from './nativePlaybackController';
 import { nativePlaybackBridge, arrayBufferToBase64 } from './nativePlaybackBridge';
+import {
+  getCanonicalTrackKey,
+  isSameRecording,
+  extractProviderIdentity,
+} from '../utils/trackIdentity';
 
 export type DownloadStatus = 'not_downloaded' | 'downloading' | 'downloaded' | 'removing' | 'failed';
 
@@ -72,6 +77,7 @@ class DownloadService {
   private activeDownloads = new Map<string, DownloadProgress>();
   private activeDownloadPromises = new Map<string, Promise<void>>();
   private downloadedTracksMap = new Map<string, Track>();
+  private canonicalMap = new Map<string, Track>(); // canonicalKey -> Track
   private blobUrlMap = new Map<string, string>(); // trackId -> objectUrl
   private listeners = new Set<ProgressListener>();
   private isInitialized = false;
@@ -82,9 +88,39 @@ class DownloadService {
     this.initPromise = this.init();
   }
 
+  private indexTrack(track: Track): void {
+    this.downloadedTracksMap.set(track.id, track);
+    const cKey = getCanonicalTrackKey(track);
+    this.canonicalMap.set(cKey, track);
+    const prov = extractProviderIdentity(track);
+    if (prov && prov.rawId) {
+      this.canonicalMap.set(`${prov.provider}:${prov.rawId}`, track);
+    }
+  }
+
+  private unindexTrack(trackId: string): void {
+    const existing = this.downloadedTracksMap.get(trackId);
+    this.downloadedTracksMap.delete(trackId);
+    if (existing) {
+      const cKey = getCanonicalTrackKey(existing);
+      if (this.canonicalMap.get(cKey)?.id === trackId) {
+        this.canonicalMap.delete(cKey);
+      }
+      const prov = extractProviderIdentity(existing);
+      if (prov && prov.rawId) {
+        if (this.canonicalMap.get(`${prov.provider}:${prov.rawId}`)?.id === trackId) {
+          this.canonicalMap.delete(`${prov.provider}:${prov.rawId}`);
+        }
+      }
+    }
+  }
+
   /**
    * Initializes and self-heals download records on app startup.
    * File state is the single source of truth.
+   * Reconciles native storage and legacy IndexedDB records:
+   * Verified native files take absolute precedence, and redundant legacy IndexedDB blobs
+   * are safely purged to eliminate duplicates and free disk space.
    */
   public async init(): Promise<void> {
     try {
@@ -92,11 +128,78 @@ class DownloadService {
       console.log('[DOWNLOAD SERVICE] Initializing & validating offline records, count:', records.length);
       
       const verifiedMap = new Map<string, Track>();
+      const verifiedCanonicalMap = new Map<string, Track>();
 
+      // 1. First, sync native offline records if native is available (authoritative source of truth)
+      if (nativePlaybackBridge.isAvailable()) {
+        try {
+          const nativeTracks = await nativePlaybackBridge.getNativeDownloadedTracks();
+          for (const nt of nativeTracks) {
+            if (!nt || !nt.id || !nt.localFilePath) continue;
+            // Native download ALWAYS takes precedence over IndexedDB blob for offline playback
+            const verifiedTrack: Track = {
+              id: nt.id,
+              title: nt.title,
+              artistName: nt.artist,
+              artistId: nt.artistId || nt.artist || 'unknown',
+              albumTitle: nt.album,
+              artworkUrl: nt.artworkUrl,
+              audioUrl: `file://${nt.localFilePath}`,
+              localPath: nt.localFilePath,
+              isDownloaded: true,
+              sourceType: 'downloaded',
+              fileSize: nt.fileSize,
+              duration: Math.round((nt.durationMs || 0) / 1000),
+              provider: nt.provider || 'unknown',
+              isPlayable: true,
+              accessStatus: 'playable',
+              playbackType: 'full',
+            };
+
+            const cKey = getCanonicalTrackKey(verifiedTrack);
+            // Deduplicate native tracks if duplicate rows existed in Room
+            if (verifiedCanonicalMap.has(cKey)) {
+              continue;
+            }
+
+            verifiedMap.set(nt.id, verifiedTrack);
+            verifiedCanonicalMap.set(cKey, verifiedTrack);
+            const prov = extractProviderIdentity(verifiedTrack);
+            if (prov && prov.rawId) {
+              verifiedCanonicalMap.set(`${prov.provider}:${prov.rawId}`, verifiedTrack);
+            }
+          }
+        } catch (err) {
+          console.warn('[DOWNLOAD SERVICE] Failed to sync native downloaded tracks on init:', err);
+        }
+      }
+
+      // 2. Process IndexedDB records:
+      // If a record already exists natively on disk, safely purge the redundant IndexedDB blob!
       for (const rec of records) {
         // Validate real Blob existence & valid size (>10KB)
         if (!rec.blob || !(rec.blob instanceof Blob) || rec.blob.size < 10240) {
           console.warn('[DOWNLOAD SERVICE] Self-healing: removing corrupt or empty record:', rec.id, 'size:', rec.blob?.size);
+          await storageService.deleteDownloadedTrack(rec.id).catch(() => {});
+          continue;
+        }
+
+        const cKey = getCanonicalTrackKey(rec.track || { id: rec.id });
+        const prov = extractProviderIdentity(rec.track || { id: rec.id });
+        const provKey = prov && prov.rawId ? `${prov.provider}:${prov.rawId}` : null;
+
+        // Check if this recording already exists as a verified native download
+        const alreadyNative = verifiedCanonicalMap.get(cKey) || (provKey ? verifiedCanonicalMap.get(provKey) : null) || verifiedMap.get(rec.id);
+        if (alreadyNative && alreadyNative.localPath) {
+          console.log('[DOWNLOAD SERVICE] Reconciling: Track verified in native storage. Safely purging redundant IndexedDB blob:', rec.id);
+          // Safe deletion of redundant legacy blob to prevent duplicate song counts and reclaim storage
+          await storageService.deleteDownloadedTrack(rec.id).catch(() => {});
+          continue;
+        }
+
+        // Check if duplicate entry already processed in this pass
+        if (verifiedCanonicalMap.has(cKey)) {
+          console.log('[DOWNLOAD SERVICE] Reconciling: Redundant duplicate IndexedDB record found for canonical key:', cKey);
           await storageService.deleteDownloadedTrack(rec.id).catch(() => {});
           continue;
         }
@@ -125,43 +228,16 @@ class DownloadService {
         };
 
         verifiedMap.set(rec.id, verifiedTrack);
-      }
-
-      // Sync native offline records if native is available
-      if (nativePlaybackBridge.isAvailable()) {
-        try {
-          const nativeTracks = await nativePlaybackBridge.getNativeDownloadedTracks();
-          for (const nt of nativeTracks) {
-            if (!nt || !nt.id || !nt.localFilePath) continue;
-            // Native download ALWAYS takes precedence over IndexedDB blob for offline playback
-            const verifiedTrack: Track = {
-              id: nt.id,
-              title: nt.title,
-              artistName: nt.artist,
-              artistId: nt.artistId || nt.artist || 'unknown',
-              albumTitle: nt.album,
-              artworkUrl: nt.artworkUrl,
-              audioUrl: `file://${nt.localFilePath}`,
-              localPath: nt.localFilePath,
-              isDownloaded: true,
-              sourceType: 'downloaded',
-              fileSize: nt.fileSize,
-              duration: Math.round((nt.durationMs || 0) / 1000),
-              provider: nt.provider || 'unknown',
-              isPlayable: true,
-              accessStatus: 'playable',
-              playbackType: 'full',
-            };
-            verifiedMap.set(nt.id, verifiedTrack);
-          }
-        } catch (err) {
-          console.warn('[DOWNLOAD SERVICE] Failed to sync native downloaded tracks on init:', err);
+        verifiedCanonicalMap.set(cKey, verifiedTrack);
+        if (provKey) {
+          verifiedCanonicalMap.set(provKey, verifiedTrack);
         }
       }
 
       this.downloadedTracksMap = verifiedMap;
+      this.canonicalMap = verifiedCanonicalMap;
       this.isInitialized = true;
-      console.log('[DOWNLOAD SERVICE] Successfully initialized verified offline downloads:', this.downloadedTracksMap.size);
+      console.log('[DOWNLOAD SERVICE] Successfully initialized verified offline downloads (deduplicated):', this.downloadedTracksMap.size);
       this.notifyAll();
     } catch (err) {
       console.warn('[DOWNLOAD SERVICE] Failed to initialize offline tracks:', err);
@@ -274,19 +350,59 @@ class DownloadService {
 
   public getProgress(trackId: string): number {
     const active = this.activeDownloads.get(trackId);
-    return active ? active.percent : (this.downloadedTracksMap.has(trackId) ? 100 : 0);
+    return active ? active.percent : (this.isTrackDownloaded(trackId) ? 100 : 0);
   }
 
-  public isTrackDownloaded(trackId: string): boolean {
-    return this.downloadedTracksMap.has(trackId);
+  public isTrackDownloaded(trackOrId: string | Partial<Track>): boolean {
+    if (!trackOrId) return false;
+    if (typeof trackOrId === 'string') {
+      if (this.downloadedTracksMap.has(trackOrId)) return true;
+      const cKey = getCanonicalTrackKey({ id: trackOrId });
+      if (this.canonicalMap.has(cKey)) return true;
+      const prov = extractProviderIdentity({ id: trackOrId });
+      if (prov && prov.rawId && this.canonicalMap.has(`${prov.provider}:${prov.rawId}`)) return true;
+      return false;
+    }
+    
+    // Track object
+    if (trackOrId.id && this.downloadedTracksMap.has(trackOrId.id)) return true;
+    const cKey = getCanonicalTrackKey(trackOrId);
+    if (this.canonicalMap.has(cKey)) return true;
+    const prov = extractProviderIdentity(trackOrId);
+    if (prov && prov.rawId && this.canonicalMap.has(`${prov.provider}:${prov.rawId}`)) return true;
+
+    // Cross-provider multi-signal equality check
+    for (const existing of this.downloadedTracksMap.values()) {
+      if (isSameRecording(trackOrId, existing)) return true;
+    }
+    return false;
   }
 
   public getDownloadedTracks(): Track[] {
-    return Array.from(this.downloadedTracksMap.values());
+    const seenCanonicalKeys = new Set<string>();
+    const uniqueTracks: Track[] = [];
+    for (const track of this.downloadedTracksMap.values()) {
+      const cKey = getCanonicalTrackKey(track);
+      if (seenCanonicalKeys.has(cKey)) continue;
+      seenCanonicalKeys.add(cKey);
+      uniqueTracks.push(track);
+    }
+    return uniqueTracks;
   }
 
   public getPlayableTrack(trackId: string): Track | undefined {
-    return this.downloadedTracksMap.get(trackId);
+    if (this.downloadedTracksMap.has(trackId)) {
+      return this.downloadedTracksMap.get(trackId);
+    }
+    const cKey = getCanonicalTrackKey({ id: trackId });
+    if (this.canonicalMap.has(cKey)) {
+      return this.canonicalMap.get(cKey);
+    }
+    const prov = extractProviderIdentity({ id: trackId });
+    if (prov && prov.rawId && this.canonicalMap.has(`${prov.provider}:${prov.rawId}`)) {
+      return this.canonicalMap.get(`${prov.provider}:${prov.rawId}`);
+    }
+    return undefined;
   }
 
   /**
@@ -301,7 +417,7 @@ class DownloadService {
         const isNative = await nativePlaybackBridge.isTrackDownloadedNatively(trackId);
         if (isNative) {
           const nativeTracks = await nativePlaybackBridge.getNativeDownloadedTracks();
-          const nt = nativeTracks.find((t: any) => t.id === trackId);
+          const nt = nativeTracks.find((t: any) => t.id === trackId || isSameRecording({ id: trackId }, { id: t.id, title: t.title, artistName: t.artist, duration: Math.round((t.durationMs || 0) / 1000) }));
           if (nt && nt.localFilePath) {
             const verifiedTrack: Track = {
               id: nt.id,
@@ -321,7 +437,7 @@ class DownloadService {
               accessStatus: 'playable',
               playbackType: 'full',
             };
-            this.downloadedTracksMap.set(trackId, verifiedTrack);
+            this.indexTrack(verifiedTrack);
             return verifiedTrack;
           }
         }
@@ -331,7 +447,7 @@ class DownloadService {
     }
 
     // 2. Check in-memory cached track
-    const cached = this.downloadedTracksMap.get(trackId);
+    const cached = this.getPlayableTrack(trackId);
     if (cached && cached.audioUrl) return cached;
 
     // 3. Fallback: Check persistent IndexedDB storage
@@ -353,7 +469,7 @@ class DownloadService {
           accessStatus: 'playable',
           playbackType: 'full',
         };
-        this.downloadedTracksMap.set(trackId, verifiedTrack);
+        this.indexTrack(verifiedTrack);
         return verifiedTrack;
       }
     } catch (err) {
@@ -368,7 +484,7 @@ class DownloadService {
    */
   public registerMigratedNativeTrack(track: Track): void {
     if (!track || !track.id) return;
-    this.downloadedTracksMap.set(track.id, track);
+    this.indexTrack(track);
     this.notify({
       trackId: track.id,
       status: 'downloaded',
@@ -398,30 +514,33 @@ class DownloadService {
    * otherwise falls back to persistent IndexedDB storage.
    */
   public async downloadTrack(track: Track): Promise<void> {
-    const existingPromise = this.activeDownloadPromises.get(track.id);
+    const cKey = getCanonicalTrackKey(track);
+    const existingPromise = this.activeDownloadPromises.get(cKey) || this.activeDownloadPromises.get(track.id);
     if (existingPromise) {
-      console.log('[DOWNLOAD] Track is already downloading (reusing active promise):', track.id);
+      console.log('[DOWNLOAD] Track is already downloading (reusing active promise):', track.id, 'canonical:', cKey);
       return existingPromise;
     }
 
-    const promise = this.executeDownloadTrack(track);
+    const promise = this.executeDownloadTrack(track, cKey);
+    this.activeDownloadPromises.set(cKey, promise);
     this.activeDownloadPromises.set(track.id, promise);
     try {
       await promise;
     } finally {
+      this.activeDownloadPromises.delete(cKey);
       this.activeDownloadPromises.delete(track.id);
     }
   }
 
-  private async executeDownloadTrack(track: Track): Promise<void> {
+  private async executeDownloadTrack(track: Track, canonicalKey: string): Promise<void> {
     const active = this.activeDownloads.get(track.id);
     if (active && active.status === 'downloading') {
       console.log('[DOWNLOAD] Track is already downloading:', track.id);
       return;
     }
 
-    if (this.isTrackDownloaded(track.id)) {
-      console.log('[DOWNLOAD] Track is already downloaded:', track.id);
+    if (this.isTrackDownloaded(track)) {
+      console.log('[DOWNLOAD] Track is already downloaded (canonical match):', track.id, 'canonical:', canonicalKey);
       return;
     }
 
@@ -430,14 +549,15 @@ class DownloadService {
         const isAlreadyNative = await nativePlaybackBridge.isTrackDownloadedNatively(track.id);
         if (isAlreadyNative) {
           console.log('[DOWNLOAD] Track already verified natively:', track.id);
-          this.downloadedTracksMap.set(track.id, {
+          const downloadedTrack: Track = {
             ...track,
             isDownloaded: true,
             sourceType: 'downloaded',
             isPlayable: true,
             accessStatus: 'playable',
             playbackType: 'full',
-          });
+          };
+          this.indexTrack(downloadedTrack);
           this.notify({
             trackId: track.id,
             status: 'downloaded',
@@ -732,7 +852,7 @@ class DownloadService {
         accessStatus: 'playable',
       };
 
-      this.downloadedTracksMap.set(track.id, downloadedTrack);
+      this.indexTrack(downloadedTrack);
       this.notify({
         trackId: track.id,
         status: 'downloaded',
@@ -862,7 +982,7 @@ class DownloadService {
     };
 
     await storageService.saveDownloadedTrack(record);
-    this.downloadedTracksMap.set(track.id, downloadedTrack);
+    this.indexTrack(downloadedTrack);
 
     this.notify({
       trackId: track.id,
@@ -960,7 +1080,7 @@ class DownloadService {
     this.cancelPlaylistFlags.delete(pid);
     this.isPlaylistDownloadingMap.set(pid, true);
 
-    const neededTracks = tracks.filter((t) => !this.isTrackDownloaded(t.id));
+    const neededTracks = tracks.filter((t) => !this.isTrackDownloaded(t));
     const skipped = tracks.length - neededTracks.length;
 
     console.log('[DOWNLOAD SERVICE] Starting playlist download:', {
@@ -1035,7 +1155,7 @@ class DownloadService {
       } catch {}
       this.blobUrlMap.delete(trackId);
     }
-    this.downloadedTracksMap.delete(trackId);
+    this.unindexTrack(trackId);
     this.activeDownloads.delete(trackId);
   }
 }

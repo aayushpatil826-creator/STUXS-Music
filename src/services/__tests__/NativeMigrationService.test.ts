@@ -414,8 +414,8 @@ describe('NativeMigrationService Tests', () => {
       assert.equal(abortCalled, true);
     });
 
-    // 12. Original IndexedDB record remains after success
-    it('12. Original IndexedDB record remains after success', async () => {
+    // 12. Legacy IndexedDB record safely purged after native verification succeeds
+    it('12. Legacy IndexedDB record safely purged after native verification succeeds', async () => {
       const record: StoredAudioRecord = {
         id: 'persist-success-track',
         track: { id: 'persist-success-track', title: 'Persist Song' } as any,
@@ -449,7 +449,7 @@ describe('NativeMigrationService Tests', () => {
 
       const result = await migrationService.migrateTrack(record);
       assert.equal(result.success, true);
-      assert.equal(deleteTrackCalled, false, 'IndexedDB record must NOT be deleted after success');
+      assert.equal(deleteTrackCalled, true, 'Legacy IndexedDB record is safely purged after verified native migration');
     });
 
     // 13. Original IndexedDB record remains after failure

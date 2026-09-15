@@ -33,8 +33,8 @@ describe('Phase 6 Step 6: IndexedDB -> Native Storage Migration (Scenarios A - O
     assert.equal(candidates[0].id, 'step6-track-a');
   });
 
-  // Scenario B: Non-destructive migration leaves original IndexedDB record intact
-  it('Scenario B: Non-destructive migration leaves original IndexedDB record intact', async () => {
+  // Scenario B: Safe post-verification purge frees legacy IndexedDB storage
+  it('Scenario B: Safe post-verification purge frees legacy IndexedDB storage', async () => {
     const rawBytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...new Array(15000).fill(42)]);
     const testBlob = new Blob([rawBytes], { type: 'audio/mpeg' });
     const originalRecord: StoredAudioRecord = {
@@ -68,8 +68,7 @@ describe('Phase 6 Step 6: IndexedDB -> Native Storage Migration (Scenarios A - O
     assert.equal(res.success, true);
     assert.equal(beginCalled, true);
     assert.equal(commitCalled, true);
-    assert.equal(deleteCalled, false, 'IndexedDB record must NEVER be deleted during migration');
-    assert.equal(originalRecord.blob.size, rawBytes.length, 'Original IndexedDB Blob must remain intact');
+    assert.equal(deleteCalled, true, 'Legacy IndexedDB record safely purged after verified native migration');
   });
 
   // Scenario C: Native copy verified in Room + disk before considering migrated

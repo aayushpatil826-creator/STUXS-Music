@@ -381,4 +381,8 @@ class NativeChunkedDownloadManager(
             expectedChunkIndex = 0
         )
     }
+
+    fun purgeOrphanFilesBlocking(olderThanMs: Long = 10 * 60 * 1000L): Int = runBlocking(Dispatchers.IO) {
+        repository.purgeOrphanFiles(olderThanMs)
+    }
 }

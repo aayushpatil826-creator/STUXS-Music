@@ -1,21 +1,23 @@
 {
   "latestVersion": "2.0",
-  "latestVersionCode": 7,
+  "latestVersionCode": 8,
   "minimumSupportedVersionCode": 1,
-  "releaseDate": "2026-09-11",
-  "apkUrl": "https://github.com/aayushpatil826-creator/STUXS-Music/releases/download/v2.0.7/STUXS-Music-2.0-Build7.apk",
-  "apkSize": 16799052,
-  "sha256": "a26ba3682dcaf42a00cbe26d1610010298be9ac16177e3e15b3de1a35e2ef583",
+  "releaseDate": "2026-09-15",
+  "apkUrl": "https://github.com/aayushpatil826-creator/STUXS-Music/releases/download/v2.0.8/STUXS-Music-2.0-Build8.apk",
+  "apkSize": 16800732,
+  "sha256": "c2376f4e4629d7a1ed5e45255820bd7ce5e79c6e313a51b8f40f5db41906b784",
   "mandatory": false,
-  "title": "STUXS Music 2.0 — Build 7",
+  "title": "STUXS Music 2.0 — Build 8",
   "releaseNotes": [
-    "Fixed in-app update bottom sheet layering so it stays above the mini-player and bottom navigation",
-    "Update Now and Later actions are fully accessible",
-    "Improved update sheet safe-area handling and release-notes scrolling",
-    "Fixed playlist scrolling freeze: restored full vertical touch scrolling, momentum gestures, and reachability for all tracks",
-    "Real Indian Trending charts powered by JioSaavn and Gaana",
-    "Strict STUXS catalog exclusion from trending candidate pool",
-    "Home Carousel and Dedicated See All Trending parity",
-    "Native Media3 playback performance optimizations"
+    "Permanent offline download deduplication and idempotent cross-storage synchronization",
+    "Canonical recording identity hierarchy with strict variant preservation for remixes, live, acoustic, and instrumental versions",
+    "Safe Room/native and IndexedDB reconciliation preventing duplicate track entries",
+    "Safe migration with verified-playable native audio validation prior to legacy cleanup",
+    "Native Media3 authoritative auto-next track playback on track completion",
+    "Authoritative Repeat ONE, Repeat ALL, and Repeat OFF semantics in native ExoPlayer engine",
+    "Bounded fall-forward recovery auto-advancing past unavailable or corrupted audio streams",
+    "Exactly-once end-transition protection eliminating duplicate track skips across background states",
+    "Bounded transitional WakeLock safeguarding background track switches during screen-off deep sleep",
+    "Instantaneous React UI queue and active track state synchronization with native playback"
   ]
 }

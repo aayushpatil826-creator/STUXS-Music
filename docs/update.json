@@ -1,23 +1,22 @@
 {
   "latestVersion": "2.0",
-  "latestVersionCode": 8,
+  "latestVersionCode": 9,
   "minimumSupportedVersionCode": 1,
-  "releaseDate": "2026-09-15",
-  "apkUrl": "https://github.com/aayushpatil826-creator/STUXS-Music/releases/download/v2.0.8/STUXS-Music-2.0-Build8.apk",
-  "apkSize": 16800732,
-  "sha256": "c2376f4e4629d7a1ed5e45255820bd7ce5e79c6e313a51b8f40f5db41906b784",
+  "releaseDate": "2026-09-23",
+  "apkUrl": "https://github.com/aayushpatil826-creator/STUXS-Music/releases/download/v2.0.9/STUXS-Music-2.0-Build9.apk",
+  "apkSize": 16801064,
+  "sha256": "8a776177028faa8fe2b99a01778d0d00a9ab880bae7e18e8fd5a4c2f899bd6d3",
   "mandatory": false,
-  "title": "STUXS Music 2.0 — Build 8",
+  "title": "STUXS Music 2.0 — Build 9",
   "releaseNotes": [
-    "Permanent offline download deduplication and idempotent cross-storage synchronization",
-    "Canonical recording identity hierarchy with strict variant preservation for remixes, live, acoustic, and instrumental versions",
-    "Safe Room/native and IndexedDB reconciliation preventing duplicate track entries",
-    "Safe migration with verified-playable native audio validation prior to legacy cleanup",
-    "Native Media3 authoritative auto-next track playback on track completion",
-    "Authoritative Repeat ONE, Repeat ALL, and Repeat OFF semantics in native ExoPlayer engine",
-    "Bounded fall-forward recovery auto-advancing past unavailable or corrupted audio streams",
-    "Exactly-once end-transition protection eliminating duplicate track skips across background states",
-    "Bounded transitional WakeLock safeguarding background track switches during screen-off deep sleep",
-    "Instantaneous React UI queue and active track state synchronization with native playback"
+    "Authoritative Previous Song navigation across UI, notification, lock-screen, headset/Bluetooth, and MediaSession",
+    "Standard music-player restart threshold: resets to 0:00 when track position > 3 seconds without altering queue position",
+    "Instant previous track navigation when within initial 3 seconds of playback",
+    "Accurate Repeat ONE restarting and Repeat ALL wrap-around without negative index or crash at queue boundaries",
+    "Eliminated double-advance and dual-triggering between React player controller and native Media3 engine",
+    "Deep audio container magic-byte verification rejecting HTML/XML error pages and JSON error payloads",
+    "Authoritative container detection ensuring MP4/M4A/AAC files receive explicit MIME types on Media3 MediaItems",
+    "Canonical multi-signal offline track matching resolving downloads across catalog and provider ID variations",
+    "Atomic write stream synchronization guaranteeing full disk commit before download finalization"
   ]
 }

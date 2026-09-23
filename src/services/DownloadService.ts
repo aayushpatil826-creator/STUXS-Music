@@ -390,17 +390,24 @@ class DownloadService {
     return uniqueTracks;
   }
 
-  public getPlayableTrack(trackId: string): Track | undefined {
+  public getPlayableTrack(trackOrId: string | Track): Track | undefined {
+    const trackId = typeof trackOrId === 'string' ? trackOrId : trackOrId.id;
     if (this.downloadedTracksMap.has(trackId)) {
       return this.downloadedTracksMap.get(trackId);
     }
-    const cKey = getCanonicalTrackKey({ id: trackId });
+    const queryTrack = typeof trackOrId === 'string' ? { id: trackId } : trackOrId;
+    const cKey = getCanonicalTrackKey(queryTrack);
     if (this.canonicalMap.has(cKey)) {
       return this.canonicalMap.get(cKey);
     }
-    const prov = extractProviderIdentity({ id: trackId });
+    const prov = extractProviderIdentity(queryTrack);
     if (prov && prov.rawId && this.canonicalMap.has(`${prov.provider}:${prov.rawId}`)) {
       return this.canonicalMap.get(`${prov.provider}:${prov.rawId}`);
+    }
+    for (const dt of this.downloadedTracksMap.values()) {
+      if (isSameRecording(queryTrack, dt)) {
+        return dt;
+      }
     }
     return undefined;
   }
@@ -408,38 +415,48 @@ class DownloadService {
   /**
    * Guaranteed offline resolver: Checks in-memory cache, ensures DB is initialized,
    * and falls back directly to IndexedDB query if needed.
+   * Supports both track ID string and full Track object for robust canonical resolution.
    */
-  public async resolvePlayableDownloadedTrack(trackId: string): Promise<Track | undefined> {
+  public async resolvePlayableDownloadedTrack(trackOrId: string | Track): Promise<Track | undefined> {
     await this.ensureInitialized();
+    const trackId = typeof trackOrId === 'string' ? trackOrId : trackOrId.id;
+    const queryTrack: Track | { id: string } = typeof trackOrId === 'string' ? { id: trackOrId } : trackOrId;
+
     // 1. If native playback bridge is available, prioritize verified native file storage
     if (nativePlaybackBridge.isAvailable()) {
       try {
-        const isNative = await nativePlaybackBridge.isTrackDownloadedNatively(trackId);
-        if (isNative) {
-          const nativeTracks = await nativePlaybackBridge.getNativeDownloadedTracks();
-          const nt = nativeTracks.find((t: any) => t.id === trackId || isSameRecording({ id: trackId }, { id: t.id, title: t.title, artistName: t.artist, duration: Math.round((t.durationMs || 0) / 1000) }));
-          if (nt && nt.localFilePath) {
-            const verifiedTrack: Track = {
-              id: nt.id,
-              title: nt.title,
-              artistName: nt.artist,
-              artistId: nt.artistId || nt.artist || 'unknown',
-              albumTitle: nt.album,
-              artworkUrl: nt.artworkUrl,
-              audioUrl: `file://${nt.localFilePath}`,
-              localPath: nt.localFilePath,
-              isDownloaded: true,
-              sourceType: 'downloaded',
-              fileSize: nt.fileSize,
-              duration: Math.round((nt.durationMs || 0) / 1000),
-              provider: nt.provider || 'unknown',
-              isPlayable: true,
-              accessStatus: 'playable',
-              playbackType: 'full',
-            };
-            this.indexTrack(verifiedTrack);
-            return verifiedTrack;
-          }
+        const nativeTracks = await nativePlaybackBridge.getNativeDownloadedTracks();
+        const nt = nativeTracks.find((t: any) =>
+          t.id === trackId ||
+          isSameRecording(queryTrack, {
+            id: t.id,
+            title: t.title,
+            artistName: t.artist,
+            albumTitle: t.album,
+            duration: Math.round((t.durationMs || 0) / 1000),
+          })
+        );
+        if (nt && nt.localFilePath) {
+          const verifiedTrack: Track = {
+            id: nt.id,
+            title: nt.title,
+            artistName: nt.artist,
+            artistId: nt.artistId || nt.artist || 'unknown',
+            albumTitle: nt.album,
+            artworkUrl: nt.artworkUrl,
+            audioUrl: `file://${nt.localFilePath}`,
+            localPath: nt.localFilePath,
+            isDownloaded: true,
+            sourceType: 'downloaded',
+            fileSize: nt.fileSize,
+            duration: Math.round((nt.durationMs || 0) / 1000),
+            provider: nt.provider || 'unknown',
+            isPlayable: true,
+            accessStatus: 'playable',
+            playbackType: 'full',
+          };
+          this.indexTrack(verifiedTrack);
+          return verifiedTrack;
         }
       } catch (err) {
         console.warn('[DOWNLOAD SERVICE] Error resolving native offline track:', err);
@@ -718,7 +735,16 @@ class DownloadService {
         throw new Error(`Server returned HTTP ${response.status} when downloading audio`);
       }
 
-      const contentType = response.headers.get('content-type') || (ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg');
+      const rawContentType = response.headers.get('content-type') || '';
+      if (
+        rawContentType.toLowerCase().includes('text/html') ||
+        rawContentType.toLowerCase().includes('application/json') ||
+        rawContentType.toLowerCase().includes('text/plain')
+      ) {
+        throw new Error(`Server returned non-audio response: ${rawContentType}`);
+      }
+
+      const contentType = rawContentType || (ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg');
       const contentLength = response.headers.get('content-length');
       const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
 
@@ -748,6 +774,17 @@ class DownloadService {
         if (done) break;
 
         if (value && value.length > 0) {
+          if (receivedBytes === 0) {
+            const sample = new TextDecoder('utf-8').decode(value.slice(0, 64)).trim().toLowerCase();
+            if (
+              sample.startsWith('<!doctype') ||
+              sample.startsWith('<html') ||
+              sample.startsWith('<?xml') ||
+              (sample.startsWith('{') && (sample.includes('error') || sample.includes('message') || sample.includes('code')))
+            ) {
+              throw new Error('Downloaded stream returned HTML or JSON error payload instead of valid audio');
+            }
+          }
           receivedBytes += value.length;
           buffer = appendToBuffer(buffer, value);
 
@@ -884,7 +921,16 @@ class DownloadService {
         throw new Error(`Server returned HTTP ${response.status} when downloading audio`);
       }
 
-      const contentType = response.headers.get('content-type') || 'audio/mpeg';
+      const rawContentType = response.headers.get('content-type') || '';
+      if (
+        rawContentType.toLowerCase().includes('text/html') ||
+        rawContentType.toLowerCase().includes('application/json') ||
+        rawContentType.toLowerCase().includes('text/plain')
+      ) {
+        throw new Error(`Server returned non-audio response: ${rawContentType}`);
+      }
+
+      const contentType = rawContentType || 'audio/mpeg';
       const contentLength = response.headers.get('content-length');
       const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
 
@@ -905,6 +951,17 @@ class DownloadService {
           if (done) break;
 
           if (value) {
+            if (receivedBytes === 0 && value.length > 0) {
+              const sample = new TextDecoder('utf-8').decode(value.slice(0, 64)).trim().toLowerCase();
+              if (
+                sample.startsWith('<!doctype') ||
+                sample.startsWith('<html') ||
+                sample.startsWith('<?xml') ||
+                (sample.startsWith('{') && (sample.includes('error') || sample.includes('message') || sample.includes('code')))
+              ) {
+                throw new Error('Downloaded stream returned HTML or JSON error payload instead of valid audio');
+              }
+            }
             chunks.push(value);
             receivedBytes += value.length;
             if (totalBytes > 0) {

@@ -355,7 +355,7 @@ class StuxsExoPlayerEngine(
     private suspend fun createMediaSourceForTrack(track: NativeTrack): MediaSource? {
         return when (val resolved = sourceResolver.resolveSource(track)) {
             is ResolvedSource.LocalFile -> {
-                val mediaItem = buildMediaItem(track, Uri.fromFile(resolved.file))
+                val mediaItem = buildMediaItem(track, Uri.fromFile(resolved.file), resolved.mimeType)
                 ProgressiveMediaSource.Factory(defaultDataSourceFactory).createMediaSource(mediaItem)
             }
             is ResolvedSource.DeviceUri -> {
@@ -479,7 +479,7 @@ class StuxsExoPlayerEngine(
         prepareAndPlay(updatedTrack, startPositionMs = startPositionMs, playWhenReady = playWhenReady)
     }
 
-    private fun buildMediaItem(track: NativeTrack, uri: Uri): MediaItem {
+    private fun buildMediaItem(track: NativeTrack, uri: Uri, mimeType: String? = null): MediaItem {
         val metadata = MediaMetadata.Builder()
             .setTitle(track.title)
             .setArtist(track.artist)
@@ -487,11 +487,16 @@ class StuxsExoPlayerEngine(
             .setArtworkUri(track.artworkUrl?.let { Uri.parse(it) })
             .build()
 
-        return MediaItem.Builder()
+        val builder = MediaItem.Builder()
             .setUri(uri)
             .setMediaId(track.id)
             .setMediaMetadata(metadata)
-            .build()
+
+        if (!mimeType.isNullOrBlank()) {
+            builder.setMimeType(mimeType)
+        }
+
+        return builder.build()
     }
 
     private fun playMediaSource(mediaSource: MediaSource, startPositionMs: Long = 0L, playWhenReady: Boolean = true) {
@@ -602,17 +607,44 @@ class StuxsExoPlayerEngine(
 
     fun skipToPrevious(): Boolean {
         if (currentQueue.isEmpty()) return false
-        if (exoPlayer.currentPosition > 3000L) {
+        val currentPos = exoPlayer.currentPosition.coerceAtLeast(0L)
+        val repeatMode = _playbackState.value.repeatMode
+
+        android.util.Log.i("STUXS_SENTINEL", "[SKIP_PREVIOUS pos=${currentPos}ms threshold=${PREVIOUS_RESTART_THRESHOLD_MS}ms repeat=$repeatMode idx=$currentIndex size=${currentQueue.size}]")
+
+        // 1. If playback progressed past restart threshold (3s), restart track from 0
+        if (currentPos > PREVIOUS_RESTART_THRESHOLD_MS) {
             seekTo(0L)
+            exoPlayer.play()
             return true
         }
+
+        // 2. Repeat ONE: restart current track from 0
+        if (repeatMode == NativeRepeatMode.ONE) {
+            seekTo(0L)
+            exoPlayer.play()
+            return true
+        }
+
+        // 3. If earlier track exists in queue, go to previous item
         if (currentIndex > 0) {
             currentIndex--
             prepareAndPlay(currentQueue[currentIndex])
             return true
         }
+
+        // 4. At beginning of queue:
+        // If repeat ALL and queue has multiple tracks, wrap around to last item
+        if (repeatMode == NativeRepeatMode.ALL && currentQueue.size > 1) {
+            currentIndex = currentQueue.size - 1
+            prepareAndPlay(currentQueue[currentIndex])
+            return true
+        }
+
+        // Otherwise (repeat OFF or single track), restart current track from 0
         seekTo(0L)
-        return false
+        exoPlayer.play()
+        return true
     }
 
     fun hasNextTrack(): Boolean {
@@ -757,6 +789,8 @@ class StuxsExoPlayerEngine(
     }
 
     companion object {
+        const val PREVIOUS_RESTART_THRESHOLD_MS: Long = 3000L
+
         @Volatile
         private var INSTANCE: StuxsExoPlayerEngine? = null
 

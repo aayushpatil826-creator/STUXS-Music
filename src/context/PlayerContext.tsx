@@ -640,9 +640,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const resolvePlayableSource = useCallback(
     async (track: Track): Promise<Track> => {
       // 1. Guaranteed Offline Download Check (Memory Map + Persistent IndexedDB Check)
-      let downloaded = downloadService.getPlayableTrack(track.id);
+      let downloaded = downloadService.getPlayableTrack(track);
       if (!downloaded || !downloaded.audioUrl) {
-        downloaded = await downloadService.resolvePlayableDownloadedTrack(track.id);
+        downloaded = await downloadService.resolvePlayableDownloadedTrack(track);
       }
       if (downloaded && downloaded.audioUrl) {
         console.log('[PLAYER] Using verified offline download for:', {
@@ -1875,7 +1875,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Manual Previous Button Click: Routes to single authoritative resolver & central playTrack
   const prevTrack = useCallback(async () => {
+    // 1. Authoritative Native Media3 navigation
+    if (nativePlaybackController.isEnabled()) {
+      try {
+        const handled = await nativePlaybackController.skipToPrevious();
+        if (handled) return;
+      } catch (err) {
+        console.warn('[PlayerContext] Native skipToPrevious error:', err);
+      }
+    }
+
+    // 2. WebAudio / Fallback navigation
     if (progressRef.current > 3) {
+      seek(0);
+      return;
+    }
+
+    if (repeatModeRef.current === 'one') {
       seek(0);
       return;
     }

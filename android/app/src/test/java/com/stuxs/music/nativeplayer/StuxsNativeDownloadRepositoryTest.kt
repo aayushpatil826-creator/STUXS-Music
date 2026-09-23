@@ -50,6 +50,12 @@ class StuxsNativeDownloadRepositoryTest {
 
         override suspend fun existsById(id: String): Boolean =
             storage.containsKey(id)
+
+        override suspend fun getDownloadedTrackByTitleAndArtist(title: String, artist: String): DownloadedTrackEntity? =
+            storage.values.firstOrNull { it.title.equals(title, ignoreCase = true) && it.artist.equals(artist, ignoreCase = true) }
+
+        override suspend fun getDownloadedTrackByFilePath(filePath: String): DownloadedTrackEntity? =
+            storage.values.firstOrNull { it.localFilePath == filePath }
     }
 
     @Before
@@ -174,8 +180,13 @@ class StuxsNativeDownloadRepositoryTest {
     fun testAtomicCommitCreatesCorrectRoomRecord() = runBlocking {
         val trackId = "test-track-room"
         
-        repository.beginChunkedDownload(trackId, "m4a")
-        repository.appendChunk(trackId, ByteArray(15000) { 6 })
+        val m4aBytes = ByteArray(15000) { 6 }.apply {
+            this[4] = 'f'.code.toByte()
+            this[5] = 't'.code.toByte()
+            this[6] = 'y'.code.toByte()
+            this[7] = 'p'.code.toByte()
+        }
+        repository.appendChunk(trackId, m4aBytes)
 
         val entity = DownloadedTrackEntity(
             id = trackId,
